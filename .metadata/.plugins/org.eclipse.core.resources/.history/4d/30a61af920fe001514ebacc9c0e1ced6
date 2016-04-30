@@ -1,0 +1,915 @@
+package parser;
+
+import java.awt.BorderLayout;
+import java.awt.Color;
+import java.awt.Container;
+import java.awt.DisplayMode;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.awt.event.KeyEvent;
+import java.awt.event.KeyListener;
+import java.awt.event.MouseWheelEvent;
+import java.awt.event.MouseWheelListener;
+
+import javax.swing.BorderFactory;
+import javax.swing.JButton;
+import javax.swing.JFrame;
+import javax.swing.JProgressBar;
+import javax.swing.border.Border;
+
+import com.jogamp.opengl.GL2;
+import com.jogamp.opengl.GLAutoDrawable;
+import com.jogamp.opengl.GLCapabilities;
+import com.jogamp.opengl.GLEventListener;
+import com.jogamp.opengl.GLProfile;
+import com.jogamp.opengl.awt.GLCanvas;
+import com.jogamp.opengl.glu.GLU;
+import com.jogamp.opengl.util.FPSAnimator;
+
+public class Box_diago implements GLEventListener {
+
+	public static DisplayMode dm, dm_old;
+	private GLU glu = new GLU();
+	private static float rquad = 225.0f;
+	private static int rquad_bool = 1;
+
+	private static float pscale = 1.0f;
+	Experimental body, hand_left, hand_left_palm, hand_right, hand_right_palm,
+			ring;
+	Experimental leg_left, leg_left_bot, leg_right, leg_right_bot;
+	Experimental foot_right, foot_left, head;
+	Experimental body_op;
+	Experimental bam;
+	/**
+	 * hit action
+	 */
+	private static int hit = 0;
+	/**
+	 * actions punch player
+	 */
+	private static int action = 0;
+
+	// ArrayList<Float> params;
+
+	/**
+	 * left hand
+	 */
+	static float arm_left_angle = 1.0f, arm_left_shift = 0f,
+			arm_left_bool = 1.0f;
+
+	/**
+	 * right hand
+	 */
+	static float arm_right_angle = 1.0f, arm_right_shift = 0f,
+			arm_right_bool = 1.0f;
+
+	/**
+	 * jump variable
+	 */
+	static float jump_var = 0;
+
+	/**
+	 * positioning
+	 */
+	static float pos_x = 1, pos_y = -1;
+
+	/**
+	 * Opponent
+	 */
+
+	private static int action_op = 0;
+	/**
+	 * left hand
+	 */
+	static float arm_left_angle_op = 1.0f, arm_left_shift_op = 0f,
+			arm_left_bool_op = 1.0f;
+
+	/**
+	 * right hand
+	 */
+	static float arm_right_angle_op = 1.0f, arm_right_shift_op = 0f,
+			arm_right_bool_op = 1.0f;
+
+	/**
+	 * jump variable
+	 */
+	static float jump_var_op = 0;
+
+	/**
+	 * positioning
+	 */
+	static float pos_x_op = -1f, pos_y_op = 1f;
+	/**
+	 * angle player
+	 */
+	static float player_face_angle;
+
+	// health
+	static int val_player = 100, val_opponent = 100;
+
+	// progress bars
+	static JProgressBar pb1, pb2;
+	private static JButton b;
+	private static JFrame frame;
+	private static GLCanvas glcanvas;
+
+	@Override
+	public void display(GLAutoDrawable drawable) {
+
+		final GL2 gl = drawable.getGL().getGL2();
+		gl.glClear(GL2.GL_COLOR_BUFFER_BIT | GL2.GL_DEPTH_BUFFER_BIT);
+		gl.glLoadIdentity();
+
+		gl.glTranslatef(0f, 0f, -5.0f);
+		gl.glRotatef(-60.0f, 1, 0, 0);
+		gl.glTranslatef(0f, 1f, 0f);
+		gl.glScalef(pscale, pscale, pscale);
+		gl.glRotatef(rquad, 0f, 0f, 1.0f);
+		if ((int) rquad < 200) {
+			rquad_bool = 1;
+		} else if ((int) rquad > 250) {
+			rquad_bool = -1;
+		}
+		if (Math.abs(Math.sqrt((pos_x - pos_x_op) * (pos_x - pos_x_op)
+				+ (pos_y - pos_y_op) * (pos_y - pos_y_op))) < 0.5f) {
+			if (action == 1 && action_op != 2 && hit == 0) {
+				hit = 1;
+
+				if (arm_left_shift >= 5.3f) {
+					val_opponent -= 10;
+					pb2.setBackground(new Color(
+							(100.0f - val_opponent) / 100.0f,
+							val_opponent / 100.0f, 0f));
+					pb2.setValue(val_opponent);
+					if (val_opponent == 0) {
+						b.setText("Player 1 Wins! Retry?");
+						b.setVisible(true);
+
+					}
+					// pb1.notifyAll();
+				}
+				action_op = 3;
+			} else if (action_op == 1 && action != 2 && hit == 0) {
+				hit = 1;
+
+				if (arm_left_shift_op >= 5.3f) {
+					val_player -= 10;
+					pb1.setValue(val_player);
+					pb1.setForeground(new Color((100.0f - val_player) / 100.0f,
+							val_player / 100.0f, 0f));
+					if (val_player == 0) {
+						b.setText("Player 2 Wins! Retry?");
+						b.setVisible(true);
+					}
+					// pb2.notifyAll();
+				}
+				action = 3;
+			}
+
+		}
+		rquad += rquad_bool * 0.1f;
+		gl.glBegin(GL2.GL_TRIANGLES); // Start Drawing The Cube
+		gl.glColor3f(1f, 0f, 0f); // red color
+		gl.glEnd(); // Done Drawing The Quad
+		//player
+		displayBoxerPlayer(drawable, pos_x, pos_y);
+		//opponent
+		displayOpponentBoxerPlayer(drawable, pos_x_op, pos_y_op);
+		
+		
+		
+		gl.glPushMatrix();
+		gl.glScalef(.03f, 0.03f, .01f);
+		
+		gl.glPopMatrix();
+		/**
+		 * ring designed as per obj and mtls
+		 */
+		gl.glPushMatrix();
+		gl.glScaled(0.35f, 0.35f, 0.35f);
+		gl.glPushMatrix();
+		gl.glTranslatef(0, 0, -1.5f);
+		ring.draw(gl);
+		gl.glPopMatrix();
+		gl.glTranslatef(0, 0, -1.3f);
+		gl.glScalef(0.03f, 0.03f, 0.001f);
+		gl.glRotatef(135, 0, 0, 1);
+		if (hit == 1
+				&& ((int) arm_left_shift >= 3 || (int) arm_left_shift_op >= 3)) {
+			hit = 0;
+			bam.draw(gl);
+		}
+		gl.glPopMatrix();
+		gl.glFlush();
+	}
+
+	public void displayBoxerPlayer(GLAutoDrawable drawable, float x, float y) {
+		final GL2 gl = drawable.getGL().getGL2();
+
+		gl.glPushMatrix();
+		gl.glTranslatef(x, y, 0);
+		player_face_angle = (float) Math.atan((pos_y_op - pos_y)
+				/ (pos_x_op - pos_x))
+				* 180.0f / (float) Math.PI;
+		System.out.println("$" + player_face_angle);
+		gl.glRotatef(180f + player_face_angle, 0, 0, 1);
+		if (action == 0) {
+			gl.glTranslatef(0, 0.01f * (float) Math.sin(3 * jump_var_op),
+					0.025f + 0.025f * (float) Math.sin(2 * jump_var));
+			jump_var += 0.15;
+		} else {
+			jump_var = 0;
+		}
+
+		/**
+		 * left leg
+		 */
+		{
+			gl.glPushMatrix();
+			gl.glColor4f(0, 0, 0, 1);
+			gl.glTranslatef(-0.0024f, -0.0828f, 0.0350f);
+			if (action == 0 && (float) Math.cos(jump_var) <= 0) {
+				gl.glRotatef(65.0f * (float) Math.cos(jump_var), 0, 1, 0);
+			}
+			leg_left.draw(gl);
+			gl.glTranslatef(0.0227f, 0.0022f, -0.1824f);
+			if (action == 0 && (float) Math.cos(jump_var) <= 0) {
+				gl.glRotatef(-120f * (float) Math.cos(jump_var), 0, 1, 0);
+			}
+			leg_left_bot.draw(gl);
+			gl.glTranslatef(-0.0297f, -0.0140f, -0.2493f);
+			if (action == 0 && (float) Math.cos(jump_var) <= 0) {
+				gl.glRotatef(20f + 20f * (float) Math.cos(jump_var), 0, 1, 0);
+			}
+			foot_left.draw(gl);
+			gl.glPopMatrix();
+		}
+		/**
+		 * right leg
+		 */
+		{
+			gl.glPushMatrix();
+			gl.glTranslatef(-0.0024f, 0.0828f, 0.0350f);
+			if (action == 0 && (float) Math.cos(jump_var) >= 0) {
+				gl.glRotatef(-65.0f * (float) Math.cos(jump_var), 0, 1, 0);
+			}
+			leg_right.draw(gl);
+			gl.glTranslatef(0.0240f, -0.0017f, -0.1823f);
+			if (action == 0 && (float) Math.cos(jump_var) >= 0) {
+				gl.glRotatef(120f * (float) Math.cos(jump_var), 0, 1, 0);
+			}
+			leg_right_bot.draw(gl);
+			gl.glTranslatef(-0.0295f, 0.0150f, -0.2497f);
+			if (action == 0 && (float) Math.cos(jump_var) >= 0) {
+				gl.glRotatef(20 - 20.0f * (float) Math.cos(jump_var), 0, 1, 0);
+			}
+			foot_right.draw(gl);
+			gl.glPopMatrix();
+		}
+		/**
+		 * body draw
+		 */
+		{
+			if (action == 1) {
+				gl.glRotatef(2.0f * arm_left_shift, 0, 1, 0.5f);
+			}
+			gl.glPushMatrix();
+			// gl.glRotatef(-180, 0, 0, 1);
+			body.draw(gl);
+			gl.glPopMatrix();
+		}
+		/**
+		 * Head
+		 */
+		{
+			gl.glPushMatrix();
+			gl.glTranslatef(0, 0, 0.3368f);
+			if (action == 1) {
+				gl.glRotatef(arm_left_angle / 2.0f, 1.0f, 0, 0);
+			}
+			if (action == 2) {
+				gl.glTranslatef(0, 0, -0.01f);
+				gl.glRotatef(25f, 0, 1, 0);
+			}
+			if (action == 3) {
+				gl.glRotatef(-20, 0, 1, 0);
+				action = 0;
+			}
+			head.draw(gl);
+			gl.glPopMatrix();
+		}
+		/**
+		 * left hand
+		 */
+		{
+			gl.glPushMatrix();
+			gl.glTranslatef(-0.0167f, -0.1177f, 0.2652f);
+			if (action == 1) {
+				if (arm_left_shift == 5.5f) {
+					arm_left_bool = -1.0f;
+					arm_left_shift -= 0.5f;
+				}
+				System.out.println(arm_left_angle + "\t" + arm_left_shift);
+				gl.glRotated(-1 * arm_left_angle, 0, 1, 0);
+				arm_left_angle += arm_left_bool * arm_left_shift
+						* arm_left_shift;
+				arm_left_shift += arm_left_bool * 0.5f;
+				if (arm_left_shift == -0.5f) {
+					action = action ^ 1;
+					arm_left_bool = 1.0f;
+					arm_left_shift = 0f;
+				}
+			}
+			if (action == 2) {
+				arm_right_angle = -15.0f;
+				gl.glRotatef(-1 * arm_right_angle - 40.0f, (-1
+						* arm_right_angle - 30) / 100.0f, 1f, -0.5f);
+			}
+			hand_left.draw(gl);
+			gl.glTranslatef(0.0123f, 0.0055f, -0.1591f);
+			gl.glRotatef(-150f + 1.5f * arm_left_angle, 0, 1, 0);
+			if (action == 2) {
+				gl.glRotatef(30f, 0.2f, 0.25f, 0);
+			}
+			if (action == 1) {
+				gl.glRotatef(-90.0f, 0, 0, 1);
+			}
+			hand_left_palm.draw(gl);
+			gl.glPopMatrix();
+		}
+		/**
+		 * right hand
+		 */
+		{
+			gl.glPushMatrix();
+			gl.glTranslatef(-0.0167f, 0.1177f, 0.2652f);
+			if (action == 2) {
+				arm_right_angle = -15.0f;
+			} else {
+				arm_right_angle = -30.0f;
+			}
+			gl.glRotatef(-1 * arm_right_angle - 70.0f,
+					(-1 * arm_right_angle - 30) / -100.0f, 1f, 0);
+			hand_right.draw(gl);
+			gl.glTranslatef(0.0123f, 0.0055f, -0.1591f);
+			gl.glRotatef(-125f, (-1 * arm_right_angle - 30.0f) / -60.0f, 1f,
+					(-1 * arm_right_angle - 30.0f) / -60.0f);
+			if (action == 2) {
+				gl.glRotatef(90.0f, 0, 0, 1);
+			}
+			hand_right_palm.draw(gl);
+			gl.glPopMatrix();
+		}
+
+		gl.glPopMatrix();
+	}
+
+	public void displayOpponentBoxerPlayer(GLAutoDrawable drawable, float x,
+			float y) {
+		final GL2 gl = drawable.getGL().getGL2();
+
+		gl.glPushMatrix();
+		gl.glTranslatef(x, y, 0);
+		gl.glRotatef(player_face_angle, 0, 0, 1);
+		if (action_op == 0) {
+			gl.glTranslatef(0, 0.01f * (float) Math.cos(3 * jump_var_op + 60),
+					0.033f + 0.033f * (float) Math.sin(2 * jump_var_op + 60));
+			jump_var_op += 0.11;
+		} else {
+			jump_var_op = 0;
+		}
+
+		/**
+		 * left leg
+		 */
+		{
+			gl.glPushMatrix();
+			gl.glColor4f(0, 0, 0, 1);
+			gl.glTranslatef(-0.0024f, -0.0828f, 0.0350f);
+			if (action_op == 0 && (float) Math.cos(jump_var_op + 60) <= 0) {
+				gl.glRotatef(65.0f * (float) Math.cos(jump_var_op + 60), 0, 1,
+						0);
+			}
+			leg_left.draw(gl);
+			gl.glTranslatef(0.0227f, 0.0022f, -0.1824f);
+			if (action_op == 0 && (float) Math.cos(jump_var_op + 60) <= 0) {
+				gl.glRotatef(-120f * (float) Math.cos(jump_var_op + 60), 0, 1,
+						0);
+			}
+			leg_left_bot.draw(gl);
+			gl.glTranslatef(-0.0297f, -0.0140f, -0.2493f);
+			if (action_op == 0 && (float) Math.cos(jump_var_op + 60) <= 0) {
+				gl.glRotatef(20f + 20f * (float) Math.cos(jump_var_op + 60), 0,
+						1, 0);
+			}
+			foot_left.draw(gl);
+			gl.glPopMatrix();
+		}
+		/**
+		 * right leg
+		 */
+		{
+			gl.glPushMatrix();
+			gl.glTranslatef(-0.0024f, 0.0828f, 0.0350f);
+			if (action_op == 0 && (float) Math.cos(jump_var_op + 60) >= 0) {
+				gl.glRotatef(-65.0f * (float) Math.cos(jump_var_op + 60), 0, 1,
+						0);
+			}
+			leg_right.draw(gl);
+			gl.glTranslatef(0.0240f, -0.0017f, -0.1823f);
+			if (action_op == 0 && (float) Math.cos(jump_var_op + 60) >= 0) {
+				gl.glRotatef(120f * (float) Math.cos(jump_var_op + 60), 0, 1, 0);
+			}
+			leg_right_bot.draw(gl);
+			gl.glTranslatef(-0.0295f, 0.0150f, -0.2497f);
+			if (action_op == 0 && (float) Math.cos(jump_var_op + 60) >= 0) {
+				gl.glRotatef(20 - 20.0f * (float) Math.cos(jump_var_op + 60),
+						0, 1, 0);
+			}
+			foot_right.draw(gl);
+			gl.glPopMatrix();
+		}
+		/**
+		 * body draw
+		 */
+		{
+			if (action_op == 1) {
+				gl.glRotatef(2.0f * arm_left_shift_op, 0, 1, 0.5f);
+			}
+			gl.glPushMatrix();
+			// gl.glRotatef(-180, 0, 0, 1);
+			body_op.draw(gl);
+			gl.glPopMatrix();
+		}
+		/**
+		 * Head
+		 */
+		{
+			gl.glPushMatrix();
+			gl.glTranslatef(0, 0, 0.3368f);
+			if (action_op == 1) {
+				gl.glRotatef(arm_left_angle_op / 2.0f, 1.0f, 0, 0);
+			}
+			if (action_op == 2) {
+				gl.glTranslatef(0, 0, -0.01f);
+				gl.glRotatef(25f, 0, 1, 0);
+			}
+			if (action_op == 3) {
+				gl.glRotatef(-20, 0, 1, 0);
+				action_op = 0;
+			}
+			head.draw(gl);
+			gl.glPopMatrix();
+		}
+		/**
+		 * left hand
+		 */
+		{
+			gl.glPushMatrix();
+			gl.glTranslatef(-0.0167f, -0.1177f, 0.2652f);
+			if (action_op == 1) {
+				if (arm_left_shift_op == 5.5f) {
+					arm_left_bool_op = -1.0f;
+					arm_left_shift_op -= 0.5f;
+				}
+				System.out
+						.println(arm_left_angle_op + "\t" + arm_left_shift_op);
+				gl.glRotated(-1 * arm_left_angle_op, 0, 1, 0);
+				arm_left_angle_op += arm_left_bool_op * arm_left_shift_op
+						* arm_left_shift_op;
+				arm_left_shift_op += arm_left_bool_op * 0.5f;
+				if (arm_left_shift_op == -0.5f) {
+					action_op = action_op ^ 1;
+					arm_left_bool_op = 1.0f;
+					arm_left_shift_op = 0f;
+				}
+			}
+			if (action_op == 2) {
+				arm_right_angle_op = -15.0f;
+				gl.glRotatef(-1 * arm_right_angle_op - 40.0f, (-1
+						* arm_right_angle_op - 30) / 100.0f, 1f, -0.5f);
+			}
+			hand_left.draw(gl);
+			gl.glTranslatef(0.0123f, 0.0055f, -0.1591f);
+			gl.glRotatef(-150f + 2.5f * arm_left_angle_op, 0, 1, 0);
+			if (action_op == 2) {
+				gl.glRotatef(20f, 0.2f, 0.25f, 0);
+			}
+			if (action_op == 1) {
+				gl.glRotatef(-10.0f, 0, 0, 1);
+			}
+			hand_left_palm.draw(gl);
+			gl.glPopMatrix();
+		}
+// from here
+		{
+			gl.glPushMatrix();
+			gl.glTranslatef(-0.0167f, -0.1177f, 0.2652f);
+			if (action_op == 1) {
+				if (arm_left_shift_op == 5.5f) {
+					arm_left_bool_op = -1.0f;
+					arm_left_shift_op -= 0.5f;
+				}
+				System.out
+						.println(arm_left_angle_op + "\t" + arm_left_shift_op);
+				gl.glRotated(-1 * arm_left_angle_op, 0, 1, 0);
+				arm_left_angle_op += arm_left_bool_op * arm_left_shift_op
+						* arm_left_shift_op;
+				arm_left_shift_op += arm_left_bool_op * 0.5f;
+				if (arm_left_shift_op == -0.35f) {
+					action_op = action_op ^ 1;
+					arm_left_bool_op = 1.0f;
+					arm_left_shift_op = 0f;
+				}
+			}
+			if (action_op == 2) {
+				arm_right_angle_op = 15.0f;
+				gl.glRotatef(-1 * arm_right_angle_op - 40.0f, (-1
+						* arm_right_angle_op - 30) / 100.0f, 1f, -0.5f);
+			}
+			hand_left.draw(gl);
+			gl.glTranslatef(0.0123f, 0.0055f, -0.1591f);
+			gl.glRotatef(-150f + 1.5f * arm_left_angle_op, 0, 1, 0);
+			if (action_op == 2) {
+				gl.glRotatef(30f, 0.2f, 0.25f, 0);
+			}
+			if (action_op == 1) {
+				gl.glRotatef(-90.0f, 0, 0, 1);
+			}
+			hand_left_palm.draw(gl);
+			gl.glPopMatrix();
+		}
+	// to here
+		/**
+		 * right hand
+		 */
+		{
+			gl.glPushMatrix();
+			gl.glTranslatef(-0.0167f, 0.1177f, 0.2652f);
+			if (action_op == 2) {
+				arm_right_angle_op = -15.0f;
+			} else {
+				arm_right_angle_op = -30.0f;
+			}
+			gl.glRotatef(-1 * arm_right_angle_op - 70.0f, (-1
+					* arm_right_angle_op - 30)
+					/ -100.0f, 1f, 0);
+			hand_right.draw(gl);
+			gl.glTranslatef(0.0123f, 0.0055f, -0.1591f);
+			gl.glRotatef(-125f, (-1 * arm_right_angle_op - 30.0f) / -60.0f, 1f,
+					(-1 * arm_right_angle_op - 30.0f) / -60.0f);
+			if (action_op == 2) {
+				gl.glRotatef(90.0f, 0, 0, 1);
+			}
+			hand_right_palm.draw(gl);
+			gl.glPopMatrix();
+		}
+
+		gl.glPopMatrix();
+	}
+
+	public static void movePlayer(String player, String type) {
+		if (player.equals("pl")) {
+			if (type.equals("left")) {
+				// pos_x += 0.05;
+				// pos_y -= 0.05;
+				pos_x = pos_x + 0.05f < 1.25f ? pos_x + 0.05f > -1.25 ? pos_x + 0.05f
+						: -1f
+						: 1f;
+				pos_y = pos_y - 0.05f < 1.25f ? pos_y - 0.05f > -1.25 ? pos_y - 0.05f
+						: -1f
+						: 1f;
+			} else if (type.equals("right")) {
+				// pos_x -= 0.05;
+				// pos_y += 0.05;
+				pos_x = pos_x - 0.05f < 1.25f ? pos_x - 0.05f > -1.25 ? pos_x - 0.05f
+						: -1f
+						: 1f;
+				pos_y = pos_y + 0.05f < 1.25f ? pos_y + 0.05f > -1.25 ? pos_y + 0.05f
+						: -1f
+						: 1f;
+			} else if (type.equals("up")) {
+				// pos_x -= 0.05;
+				// pos_y -= 0.05;
+				pos_x = pos_x - 0.05f < 1.25f ? pos_x - 0.05f > -1.25 ? pos_x - 0.05f
+						: -1f
+						: 1f;
+				pos_y = pos_y - 0.05f < 1.25f ? pos_y - 0.05f > -1.25 ? pos_y - 0.05f
+						: -1f
+						: 1f;
+			} else if (type.equals("down")) {
+				// pos_x += 0.05;
+				// pos_y += 0.05;
+				pos_x = pos_x + 0.05f < 1.25f ? pos_x + 0.05f > -1.25 ? pos_x + 0.05f
+						: -1f
+						: 1f;
+				pos_y = pos_y + 0.05f < 1.25f ? pos_y + 0.05f > -1.25 ? pos_y + 0.05f
+						: -1f
+						: 1f;
+			}
+		} else if (player.equals("op")) {
+			if (type.equals("left")) {
+				// pos_x_op += 0.05;
+				// pos_y_op -= 0.05;
+				pos_x_op = pos_x_op + 0.05f < 1.25f ? pos_x_op + 0.05f > -1.25 ? pos_x_op + 0.05f
+						: -1f
+						: 1f;
+				pos_y_op = pos_y_op - 0.05f < 1.25f ? pos_y_op - 0.05f > -1.25 ? pos_y_op - 0.05f
+						: -1f
+						: 1f;
+			} else if (type.equals("right")) {
+				// pos_x_op -= 0.05;
+				// pos_y_op += 0.05;
+				pos_x_op = pos_x_op - 0.05f < 1.25f ? pos_x_op - 0.05f > -1.25 ? pos_x_op - 0.05f
+						: -1f
+						: 1f;
+				pos_y_op = pos_y_op + 0.05f < 1.25f ? pos_y_op + 0.05f > -1.25 ? pos_y_op + 0.05f
+						: -1f
+						: 1f;
+			} else if (type.equals("up")) {
+				// pos_x_op -= 0.05;
+				// pos_y_op -= 0.05;
+				pos_x_op = pos_x_op - 0.05f < 1.25f ? pos_x_op - 0.05f > -1.25 ? pos_x_op - 0.05f
+						: -1f
+						: 1f;
+				pos_y_op = pos_y_op - 0.05f < 1.25f ? pos_y_op - 0.05f > -1.25 ? pos_y_op - 0.05f
+						: -1f
+						: 1f;
+			} else if (type.equals("down")) {
+				// pos_x_op += 0.05;
+				// pos_y_op += 0.05;
+				pos_x_op = pos_x_op + 0.05f < 1.25f ? pos_x_op + 0.05f > -1.25 ? pos_x_op + 0.05f
+						: -1f
+						: 1f;
+				pos_y_op = pos_y_op + 0.05f < 1.25f ? pos_y_op + 0.05f > -1.25 ? pos_y_op + 0.05f
+						: -1f
+						: 1f;
+			}
+		}
+	}
+
+	@Override
+	public void dispose(GLAutoDrawable drawable) {
+		// TODO Auto-generated method stub
+	}
+
+	@Override
+	public void init(GLAutoDrawable drawable) {
+		/**
+		 * player
+		 */
+
+		ring = new Experimental("ring");
+		body = new Experimental("body");
+		hand_left = new Experimental("hand_left");
+		hand_left_palm = new Experimental("hand_left_palm");
+		hand_right = new Experimental("hand_right");
+		hand_right_palm = new Experimental("hand_right_palm");
+		leg_left = new Experimental("leg_left");
+		leg_left_bot = new Experimental("leg_left_bot");
+		leg_right = new Experimental("leg_right");
+		leg_right_bot = new Experimental("leg_right_bot");
+		foot_left = new Experimental("foot_left");
+		foot_right = new Experimental("foot_right");
+		head = new Experimental("head");
+		bam = new Experimental("bam");
+		/**
+		 * opponent
+		 */
+		body_op = new Experimental("body_op");
+		final GL2 gl = drawable.getGL().getGL2();
+		gl.glShadeModel(GL2.GL_SMOOTH);
+		gl.glClearColor(.5f, 0f, 0f, 1f);
+		gl.glClearDepth(1.0f);
+		gl.glEnable(GL2.GL_DEPTH_TEST);
+		gl.glDepthFunc(GL2.GL_LEQUAL);
+		gl.glHint(GL2.GL_PERSPECTIVE_CORRECTION_HINT, GL2.GL_NICEST);
+
+	}
+
+	@Override
+	public void reshape(GLAutoDrawable drawable, int x, int y, int width,
+			int height) {
+
+		// TODO Auto-generated method stub
+		final GL2 gl = drawable.getGL().getGL2();
+
+		final float h = (float) width / (float) height;
+		gl.glViewport(0, 0, width, height);
+		gl.glMatrixMode(GL2.GL_PROJECTION);
+		gl.glLoadIdentity();
+
+		glu.gluPerspective(45.0f, h, 1.0, 200.0);
+		gl.glMatrixMode(GL2.GL_MODELVIEW);
+		gl.glLoadIdentity();
+	}
+
+	public static void main(String[] args) {
+
+		final GLProfile profile = GLProfile.get(GLProfile.GL2);
+		GLCapabilities capabilities = new GLCapabilities(profile);
+
+		// The canvas
+		glcanvas = new GLCanvas(capabilities);
+		glcanvas.addGLEventListener(new Box_diago());
+		glcanvas.setSize(800, 400);
+
+		frame = new JFrame("Box-diago");
+		frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+		Container content1 = frame.getContentPane();
+		Container content2 = frame.getContentPane();
+		Container content3 = frame.getContentPane();
+		b = new JButton();
+		b.setText("Retry");
+		b.setVisible(false);
+		pb1 = new JProgressBar();
+		pb2 = new JProgressBar();
+		// pb1.setBackground(Color.CYAN);
+		// pb2.setBackground(Color.CYAN);
+		pb1.setValue(100);
+		pb2.setValue(100);
+		pb1.setStringPainted(true);
+		// pb1.setBackground(Color.BLACK);
+		// pb2.setBackground(Color.BLACK);
+		pb2.setStringPainted(true);
+		Border b1 = BorderFactory.createTitledBorder("Player1");
+		Border b2 = BorderFactory.createTitledBorder("Player2");
+		pb1.setBorder(b1);
+		pb2.setBorder(b2);
+		content1.add(pb1, BorderLayout.NORTH);
+		content2.add(pb2, BorderLayout.SOUTH);
+		// content3.add(b, BorderLayout.NORTH);
+		frame.getContentPane().add(glcanvas);
+		frame.setSize(frame.getContentPane().getPreferredSize());
+		frame.setVisible(true);
+
+		final FPSAnimator animator = new FPSAnimator(glcanvas, 300, true);
+		b.addActionListener(new ActionListener() {
+
+			@Override
+			public void actionPerformed(ActionEvent arg0) {
+				// TODO Auto-generated method stub
+				b.setVisible(false);
+				hit = 0;
+
+				action = 0;
+
+				arm_left_angle = 1.0f;
+				arm_left_shift = 0f;
+				arm_left_bool = 1.0f;
+
+				arm_right_angle = 1.0f;
+				arm_right_shift = 0f;
+				arm_right_bool = 1.0f;
+
+				jump_var = 0;
+
+				pos_x = 1;
+				pos_y = -1;
+
+				action_op = 0;
+
+				arm_left_angle_op = 1.0f;
+				arm_left_shift_op = 0f;
+				arm_left_bool_op = 1.0f;
+
+				arm_right_angle_op = 1.0f;
+				arm_right_shift_op = 0f;
+				arm_right_bool_op = 1.0f;
+
+				jump_var_op = 0;
+
+				pos_x_op = -1f;
+				pos_y_op = 1f;
+
+				// health
+				val_player = 100;
+				val_opponent = 100;
+				pb1.setValue(100);
+				pb2.setValue(100);
+				addListeners();
+				glcanvas.invalidate();
+				// frame.invalidate();
+			}
+		});
+		addListeners();
+		animator.start();
+	}
+
+	public static void addListeners() {
+		frame.addMouseWheelListener(new MouseWheelListener() {
+
+			@Override
+			public void mouseWheelMoved(MouseWheelEvent arg0) {
+				// TODO Auto-generated method stub
+				// System.out.println(arg0);
+				if (arg0.getWheelRotation() == -1) {
+					pscale += 0.04;
+				} else {
+					pscale -= 0.04;
+				}
+			}
+		});
+		frame.addKeyListener(new KeyListener() {
+
+			@Override
+			public void keyTyped(KeyEvent arg0) {
+				// TODO Auto-generated method stub
+
+			}
+
+			@Override
+			public void keyReleased(KeyEvent arg0) {
+				// TODO Auto-generated method stub
+				if (arg0.getKeyCode() == KeyEvent.VK_NUMPAD2) {
+					action_op = 0;
+				}
+				if (arg0.getKeyCode() == KeyEvent.VK_SPACE) {
+					action = 0;
+				}
+			}
+
+			@Override
+			public void keyPressed(KeyEvent arg0) {
+				// TODO Auto-generated method stub
+				// if (arg0.getKeyCode() == KeyEvent.VK_LEFT) {
+				// System.out.println("LEFT");
+				// rquad -= 2f;
+				// }
+				// if (arg0.getKeyCode() == KeyEvent.VK_RIGHT) {
+				// rquad += 2f;
+				// System.out.println("RIGHT");
+				// }
+				// if (arg0.getKeyCode() == KeyEvent.VK_UP) {
+				// arm_right_angle -= 2f;
+				// System.out.println("#" + arm_right_angle + "\t"
+				// + ((-1 * arm_right_angle - 30) / -60.0));
+				// }
+				// if (arg0.getKeyCode() == KeyEvent.VK_DOWN) {
+				// arm_right_angle += 2f;
+				// System.out.println("#" + arm_right_angle + "\t"
+				// + ((-1 * arm_right_angle - 30) / -60.0f));
+				// }
+				/**
+				 * player 1
+				 */
+				if (arg0.getKeyCode() == KeyEvent.VK_A) {
+					System.out.println(Math.sqrt(pos_x * pos_x + pos_y * pos_y));
+					movePlayer("pl", "left");
+					action = action | 0;
+				}
+				if (arg0.getKeyCode() == KeyEvent.VK_D) {
+					System.out.println(Math.sqrt(pos_x * pos_x + pos_y * pos_y));
+					movePlayer("pl", "right");
+					action = action | 0;
+				}
+				if (arg0.getKeyCode() == KeyEvent.VK_W) {
+					System.out.println(Math.sqrt(pos_x * pos_x + pos_y * pos_y));
+					movePlayer("pl", "up");
+					action = action | 0;
+				}
+				if (arg0.getKeyCode() == KeyEvent.VK_S) {
+					System.out.println(Math.sqrt(pos_x * pos_x + pos_y * pos_y));
+					movePlayer("pl", "down");
+					action = action | 0;
+				}
+				if (arg0.getKeyCode() == KeyEvent.VK_CONTROL) {
+					action = 1;
+				}
+				if (arg0.getKeyCode() == KeyEvent.VK_SPACE) {
+					action = action | 2;
+				}
+				/**
+				 * player 2
+				 */
+				if (arg0.getKeyCode() == KeyEvent.VK_LEFT) {
+					System.out.println(Math.sqrt(pos_x_op * pos_x_op + pos_y_op
+							* pos_y_op));
+					movePlayer("op", "left");
+				}
+				if (arg0.getKeyCode() == KeyEvent.VK_RIGHT) {
+					System.out.println(Math.sqrt(pos_x_op * pos_x_op + pos_y_op
+							* pos_y_op));
+					movePlayer("op", "right");
+				}
+				if (arg0.getKeyCode() == KeyEvent.VK_UP) {
+					System.out.println(Math.sqrt(pos_x_op * pos_x_op + pos_y_op
+							* pos_y_op));
+					movePlayer("op", "up");
+				}
+				if (arg0.getKeyCode() == KeyEvent.VK_DOWN) {
+					System.out.println(Math.sqrt(pos_x_op * pos_x_op + pos_y_op
+							* pos_y_op));
+					movePlayer("op", "down");
+				}
+				if (arg0.getKeyCode() == KeyEvent.VK_NUMPAD1) {
+					action_op = 1;
+				}
+				if (arg0.getKeyCode() == KeyEvent.VK_NUMPAD2) {
+					action_op = action_op | 2;
+				}
+
+			}
+		});
+	}
+}
